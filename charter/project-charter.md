@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.0 (draft for sign-off) |
+| Version | 1.0 (signed) |
 | Date | Monday 7 September 2026 |
 | Author | Data Engineer, with the Business Analyst on scope and requirements |
 | Approver | Product Owner |
-| Status | For sign-off at Sprint 1 planning, Monday 7 September 2026. Recorded as decision D-001 once signed. |
+| Status | Approved at Sprint 1 planning, Monday 7 September 2026. Recorded as decision D-001. |
 | Related | `/charter/raci-matrix.md`, `/decisions/decision-log.md`, `/backlog/` |
 
 ## Simulation notice
@@ -292,10 +292,10 @@ Changes to this charter go through a pull request to `/charter`, a version bump,
 
 | Role | Decision | Date |
 |---|---|---|
-| Product Owner (approver) | Pending | |
-| Finance representative | Pending | |
-| Business Analyst | Pending | |
-| Data Analyst | Pending | |
-| Data Engineer (author) | Pending | |
+| Product Owner (approver) | Approved | 7 Sep 2026 |
+| Finance representative | Approved, with reservations — see D-001, D-002, D-003, D-004 | 7 Sep 2026 |
+| Business Analyst | Approved, condition noted — see D-001 | 7 Sep 2026 |
+| Data Analyst | Approved, condition noted — see D-001 | 7 Sep 2026 |
+| Data Engineer (author) | Approved | 7 Sep 2026 |
 
-Sign-off happens at Sprint 1 planning on Monday 7 September 2026 and is recorded as D-001. Objections are logged there, not here.
+Sign-off happened at Sprint 1 planning on Monday 7 September 2026 and is recorded as D-001. Objections and reservations are logged there, not here.
