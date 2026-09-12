@@ -30,6 +30,7 @@ Rules:
 | D-006 | 11 Sep 2026 | Definition of "active customers": split into active accounts (850,000) and purchasing customers (450,000), superseding one line of D-003 | Decided | Finance representative |
 | D-007 | 11 Sep 2026 | Sprint 1 capacity: option (b), one-time +6 Data Engineer hours; cut lines 1 to 5 applied; S1-07 stays in Sprint 1; S1-11 moves to Sprint 2 | Decided | Product Owner |
 | D-008 | 12 Sep 2026 | Rebuild order generation from a real checkout-completion funnel, superseding S1-05's direct order draw | Decided | Product Owner |
+| D-009 | 12 Sep 2026 | Correct checkout_core.py's Meridian Pay draw rate to compensate for the decline/abandon funnel discovered building S1-07 | Decided | Data Engineer |
 
 ---
 
@@ -273,7 +274,7 @@ Entry to be completed when decided.
 
 | Field | Value |
 |---|---|
-| Date | Saturday 12 September 2026|
+| Date | Saturday 12 September 2026 |
 | Status | Decided |
 | Raised by | Data Engineer, scoping S1-06 |
 | Decided by | Product Owner |
@@ -331,3 +332,72 @@ completion stand-in, for its own fast calibration only);
 | Update both test suites to match the new module boundary | Data Engineer | Done, this entry |
 | Data dictionary note distinguishing attempt-rate from completion-rate calibration | Data Analyst | S1-12 |
 | Realism review (S1-13) checks the real, completion-based purchaser/raw-gap figures, not the approximate ones in `customer_core.py`'s own manifest | Data Analyst | Wed 16 Sep |
+
+---
+
+## D-009: Correct checkout_core.py's Meridian Pay draw rate for the decline/abandon funnel
+
+| Field | Value |
+|---|---|
+| Date | Saturday 12 September 2026 |
+| Status | Decided |
+| Raised by | Data Engineer, building S1-07 |
+| Decided by | Data Engineer (RACI row 9 — implementation constants that reproduce a D-003/ground-truth aggregate are the Data Engineer's call, same basis as the band decline rates and cure rate, spec section 11 point 3) |
+| Consulted | None — a single, well-understood constant, not a conflict between roles |
+| Informed | Product Owner, Finance representative, Business Analyst, Data Analyst |
+
+**Question.** `checkout_core.py` (S1-06) drew `payment_method =
+"meridian_pay"` directly at the sealed ground-truth share (24.0% control,
+27.0% test), with no representation of the application/decline/abandon
+funnel behind that choice. Building S1-07 revealed this under-delivers
+the sealed target: a declined applicant who abandons (55% of the 12%
+decline rate) is removed from both the Meridian Pay count and the order
+count entirely, which the naive draw never accounted for. Before any
+fix, the realised MP share at scale 0.1 landed at 21.6% against the
+sealed 24.0% target. Leave the drift and disclose it, or correct the
+draw rate so the post-funnel figure lands on target?
+
+**Options.**
+
+1. Leave `checkout_core.py`'s draw rate unchanged. Accept ~21.6% as a
+   known, disclosed miss against the sealed 24.0% target; note the gap
+   in the data dictionary and let the realism review flag it.
+2. Correct the draw rate by a derived inflation factor (a function of
+   the band decline rate and the 55% abandon fraction, both already
+   fixed elsewhere) so the realised share, AFTER S1-07's funnel runs,
+   lands on the sealed target. The target itself is untouched — only the
+   implementation constant that feeds it changes.
+
+**Decision.** Option 2. `_inflate_for_decline_funnel()` added to
+`checkout_core.py`: `p_draw = target / ((1 - decline) + target *
+decline * abandon_frac)`, applied separately for the control and test
+arms (using each arm's own decline rate).
+
+**Rationale (Data Engineer).** This is the same category of constant as
+the band decline rates and cure rate — spec section 11 already
+establishes that those "are the Data Engineer's constants... they
+reproduce the D-003 aggregates and nothing depends on them
+individually." The sealed 24.0%/27.0% MP-share target is exactly such an
+aggregate; Finance and the Data Analyst are entitled to see it land
+correctly, not see a fully avoidable, already-understood miss surface
+first at the realism review. Option 1 would mean shipping a known bug
+under the label "disclosed limitation."
+
+**Consequence, logged plainly.** This does not reopen S1-06's own
+"Decided" status or its test suite — `test_checkout_core.py` never
+asserted the post-funnel MP-share figure (it couldn't: `mp_core.py`
+didn't exist yet when S1-06 was built and merged), so nothing S1-06
+committed to is now false. Only the underlying draw-rate constant moved;
+S1-06's suite still passes unchanged against the same assertions it
+always made. The corrected figure is asserted for the first time in
+S1-07's own suite (`test_mp_core.py`), where it belongs.
+
+**Dissent.** None recorded.
+
+**Follow-up.**
+
+| Action | Owner | Due |
+|---|---|---|
+| Data dictionary entry for `mp_share_of_orders` notes that `checkout_core.py`'s draw-rate constant differs from the sealed 24.0/27.0 target by design, citing D-009 | Data Analyst | S1-12 |
+| Realism review (S1-13) checks the corrected, post-funnel MP-share figure (target 24.0 ± tolerance), not the pre-correction 21.6% | Data Analyst | Wed 16 Sep |
+| `run_manifest.json` (S1-09) reflects the corrected draw rate, not the original | Data Engineer | Before S1-09 marked done |

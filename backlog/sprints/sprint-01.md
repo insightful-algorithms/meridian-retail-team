@@ -5,7 +5,7 @@
 | Sprint | 1 of 4: Monday 7 to Friday 18 September 2026 |
 | Milestone | M1, Friday 18 September 2026 (sprint review and retrospective) |
 | Sprint goal | Foundations: charter signed; repository and CI live; generator v1 for customers, orders, memberships, checkout, and Meridian Pay, with the generator's own test suite passing in CI; dbt staging moves to Sprint 2 week 1; data dictionary v1; baselines confirmed by Finance, including the active-customers split (D-006) |
-| Version | 0.3, Saturday 12 September 2026 |
+| Version | 0.4, Saturday 12 September 2026 |
 | Drafted by | Data Engineer, for the Product Owner |
 | Owner | Product Owner (RACI row 2). Acceptance criteria: Business Analyst (row 3) |
 | Companion | `/charter/project-charter.md` sections 8 and 11; `/decisions/decision-log.md`; `/pipeline/generator/generator-spec.md` |
@@ -47,7 +47,7 @@ Order is the proposed build order; dependencies run downward.
 | S1-04 | `config/ground_truth.yaml`, `config/faults.yaml`, `config/generator.yaml` populated from the spec; `ground_truth.md` renderer | DE (DA consulted) | X | O3.2 | S | Mon 14 Sep | Must |
 | S1-05 | Generator v1, customer core: customers, month loop, orders, circle_memberships with selection and the planted loyalty effect | DE | WS2 | O2.1 | L | Tue 15 Sep | Must |
 | S1-06 | Generator v1, checkout, partial per D-007: only checkout-starting sessions generated (not the full 2.4m-session monthly baseline); experiment_assignments and the planted conversion effect included. Full session volume to Sprint 2 | DE | WS1 | O1.1 | M | Tue 15 Sep | Must (built — see D-008) |
-| S1-07 | Generator v1, Meridian Pay: mp_applications, mp_agreements, mp_instalments, mp_payments with bands, declines, misses, cure, default, reporting lag, extract censoring | DE | WS1 | O1.2 | M | Tue 15 Sep | Must |
+| S1-07 | Generator v1, Meridian Pay: mp_applications, mp_agreements, mp_instalments, mp_payments with bands, declines, misses, cure, default, reporting lag, extract censoring | DE | WS1 | O1.2 | M | Tue 15 Sep | Must (built — see item detail) |
 | S1-08 | Fault injection, partial per D-007: duplicates, nulls, late records, and near-duplicates only. Impossible-value and clock-skew faults deferred to Sprint 2 | DE | X | O3.1, R3 | S | Tue 15 Sep | Must (partial applied) |
 | S1-09 | Run manifest, `ground_truth_realised.json`, generator tests: structure, calibration, experiment, reproducibility, fault recall, sealing | DE | X | O3.1 | S | Wed 16 Sep | Must |
 | S1-10 | Generator README and `pipeline/README.md`: run instructions, stack and pinned versions, "CI cost assumes a public repository" line, fault catalogue, known limits | DE | X | O3.1 | S | Wed 16 Sep | Must |
@@ -78,7 +78,11 @@ For each: the problem it solves (draft for the BA), acceptance criteria (draft f
 Disclosed, not yet closed: anonymous completers aren't eligible for Circle membership this pass (they're created after Circle selection
 runs); the 15% multi-visitor-id rate and the Circle tenure effect on checkout-start rate aren't applied; no Meridian Pay events yet (S1-07). Data: spec 4.2 to 4.4, 5.2, 7.1. Source: charter 7.3; D-008.
 
-**S1-07 Meridian Pay.** Problem: the guardrail and stop rule cannot be computed without bands, declines, instalments, and payments that arrive late. AC: band shares, decline rate, miss rate, and written-off value match D-003 within tolerance; test-arm mix matches spec 7.1; a payment recorded after the extract is absent; the maturity note is in the README. Data: spec 4.6 to 4.9, 5.3. Source: D-003; charter 7.3.
+**S1-07 Meridian Pay.** Problem: the guardrail and stop rule cannot be computed without bands, declines, instalments, and payments that arrive late. Built as a post-processing pass over S1-06's completed orders: every order drawn with payment_method "meridian_pay" is re-run through a real credit-band and decline decision (application-band shares derived algebraically from the D-003 approved mix and the unchanged band decline rates, not hand-picked); a declined applicant is either relabelled to card (still an order) or genuinely reversed — order, session, and checkout_event corrected back to abandoned, and any new-customer row it created rolled back with it. AC met at scale 0.1: decline rate 12.08% (target 12.0), approved band shares within 0.1 to 0.2 points of the D-003 mix, written-off value 1.79% of agreement value (target 1.9%), cure rate calibrated to 0.45 (spec expects "near 47%"); every agreement has exactly three instalments; mp_applications.customer_id is null only for declined-and-abandoned first-time applicants, per spec 4.6.
+
+Cross-reference: building this funnel revealed that S1-06's naive 24%/27% Meridian Pay draw rate under-delivers those targets once
+decline-and-abandon losses are applied (realised share 21.6% before the fix). Corrected in checkout_core.py and logged as D-009 — the sealed target is untouched; only the draw-rate constant that feeds it changed.
+Data: spec 4.6 to 4.9, 5.3. Source: D-003; charter 7.3; D-009.
 
 **S1-08 Faults.** Problem: data that is too clean makes the quality suite look better than it is (R3). AC: every fault in spec section 6 injected at its rate, or the cut in section 5 applied and logged; the fault manifest lists every injected row; clean tables pass key and reference tests before injection. Data: spec section 6. Source: R3; D-003 follow-up 2.
 
@@ -151,3 +155,4 @@ Pulled forward only if everything above lands early, which section 1 says it wil
 | 0.1 | 10 September 2026 | First issue: items from the generator spec and the D-001 to D-003 follow-ups; cut list proposal; D-006 draft. PO and BA to confirm | 
 | 0.2 | 11 September 2026 | D-006 and D-007 decided. Capacity resolved (option b): S1-06 and S1-08 scoped to partial per D-007; S1-11 deferred to Sprint 2; sections 6 and 7 replaced with resolved pointers; sprint goal restated |
 | 0.3 | 12 September 2026 | S1-06 marked built per D-008: order generation rebuilt from a real checkout funnel rather than layered around S1-05's orders. Table row and item-detail paragraph updated; three disclosed simplifications noted |
+| 0.4 | 12 September 2026 | S1-07 marked built: Meridian Pay tables, bands, declines, cure/default calibration. Table row and item-detail paragraph updated; cross-referenced D-009 (the checkout_core.py MP-share draw-rate correction discovered during this build) |

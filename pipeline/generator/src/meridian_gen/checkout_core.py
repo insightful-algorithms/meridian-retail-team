@@ -152,8 +152,27 @@ def run_checkout_core(
     conversion_effect = ground_truth["workstream_1_checkout_redesign"]["effects"]["checkout_completion_pct"]["planted_change_pp"]
     completion_test_pct = {d: completion_control_pct[d] + conversion_effect for d in devices}
 
-    mp_control_pct = ground_truth["workstream_1_checkout_redesign"]["effects"]["mp_share_of_orders_pct"]["control"]
-    mp_test_pct = ground_truth["workstream_1_checkout_redesign"]["effects"]["mp_share_of_orders_pct"]["test"]
+    mp_control_target = ground_truth["workstream_1_checkout_redesign"]["effects"]["mp_share_of_orders_pct"]["control"]
+    mp_test_target = ground_truth["workstream_1_checkout_redesign"]["effects"]["mp_share_of_orders_pct"]["test"]
+    # Correction, discovered building S1-07: mp_core.py's application/decline
+    # funnel REMOVES some of the "meridian_pay" orders drawn here (declined
+    # applicants who abandon rather than switching to card), so drawing at
+    # the sealed target directly under-delivers it after that funnel runs.
+    # This inflates the DRAW rate so the post-funnel realised share lands on
+    # the sealed target -- the target itself is untouched, only the
+    # implementation constant that feeds it (same category of fix as
+    # customer_core.py's gamma-scale calibration).
+    mp_decline_control = ground_truth["workstream_1_checkout_redesign"]["effects"]["mp_decline_rate_pct"]["control"] / 100.0
+    mp_decline_test = ground_truth["workstream_1_checkout_redesign"]["effects"]["mp_decline_rate_pct"]["test"] / 100.0
+    abandon_frac = generator_cfg["meridian_pay"]["declined_applicant_outcome"]["abandons_pct"] / 100.0
+
+    def _inflate_for_decline_funnel(target_pct: float, decline_frac: float) -> float:
+        t = target_pct / 100.0
+        p = t / ((1 - decline_frac) + t * decline_frac * abandon_frac)
+        return p * 100.0
+
+    mp_control_pct = _inflate_for_decline_funnel(mp_control_target, mp_decline_control)
+    mp_test_pct = _inflate_for_decline_funnel(mp_test_target, mp_decline_test)
     baseline_payment_shares = generator_cfg["checkout_and_orders"]["payment_method_shares_pct"]
 
     order_cfg = generator_cfg["checkout_and_orders"]["order_value"]
