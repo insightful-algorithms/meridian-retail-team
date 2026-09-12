@@ -4,8 +4,8 @@
 |---|---|
 | Sprint | 1 of 4: Monday 7 to Friday 18 September 2026 |
 | Milestone | M1, Friday 18 September 2026 (sprint review and retrospective) |
-| Sprint goal | Foundations: charter signed; repository and CI live; synthetic data v1 with the quality suite passing; data dictionary v1; baselines confirmed by Finance (charter section 8) |
-| Version | Draft 0.1, Thursday 10 September 2026 |
+| Sprint goal | Foundations: charter signed; repository and CI live; generator v1 for customers, orders, memberships, checkout, and Meridian Pay, with the generator's own test suite passing in CI; dbt staging moves to Sprint 2 week 1; data dictionary v1; baselines confirmed by Finance, including the active-customers split (D-006) |
+| Version | 0.2, Friday 11 September 2026 |
 | Drafted by | Data Engineer, for the Product Owner |
 | Owner | Product Owner (RACI row 2). Acceptance criteria: Business Analyst (row 3) |
 | Companion | `/charter/project-charter.md` sections 8 and 11; `/decisions/decision-log.md`; `/pipeline/generator/generator-spec.md` |
@@ -20,9 +20,9 @@
 
 ## 1. Capacity check
 
-Charter section 9 gives about 8 hours a week of Data Engineer build time. From Thursday 10 to Friday 18 September that is about 11 hours. The Must items in section 3 add up to about 19; Should items add 4; the one Could item adds 3. The gap on Must alone is 8 hours. Section 5 shows how far cuts can close it (not all the way) and section 6 puts the choice to the Product Owner. R9: a decision now, not a surprise on the 18th.
+Charter section 9 gives about 8 hours a week of Data Engineer build time. From Thursday 10 to Friday 18 September that is about 11 hours. The Must items in section 3 add up to about 19; Should items add 4; the one Could item adds 3. The gap on Must alone is 8 hours. Section 5 showed how far cuts alone could close it (not all the way); the Product Owner decided as D-007, applying cut lines 1 to 5 and adding six Data Engineer hours this sprint. R9: decided now, not a surprise on the 18th.
 
-Non-DE time (about 4 hours a week across the other four roles) is lighter than planned in this sprint: D-002 and D-003 are closed and Finance has nothing open until D-006.
+Non-DE time (about 4 hours a week across the other four roles) is lighter than planned in this sprint: D-002, D-003, D-006, and D-007 are all closed. Nothing is open for Finance or the Product Owner until D-004 and D-005 in Sprint 2.
 
 ## 2. Done since Sprint 1 planning
 
@@ -32,6 +32,8 @@ Non-DE time (about 4 hours a week across the other four roles) is lighter than p
 | Tooling stack and £0 baseline confirmed with conditions | FIN | Thu 10 Sep | D-002 |
 | Baselines confirmed; bands, decline rate, agreement structure, Circle cost, seasonality added | FIN | Thu 10 Sep | D-003 |
 | Generator specification v1.0 issued; Data Analyst consulted on planted effects and faults | DE, DA | Thu 10 Sep | D-003 follow-up |
+| Active-customers definition split: active accounts (850,000) vs purchasing customers (450,000) | FIN | Fri 11 Sep | D-006 |
+| Sprint 1 capacity: option (b), one-time +6 DE hours | PO | Fri 11 Sep | D-007 |
 
 ## 3. Backlog items
 
@@ -44,12 +46,12 @@ Order is the proposed build order; dependencies run downward.
 | S1-03 | `config/baselines.yaml`: every D-003 parameter, one `# D-003` comment per entry | DE | X | O3.2 | S | Fri 11 Sep | Must |
 | S1-04 | `config/ground_truth.yaml`, `config/faults.yaml`, `config/generator.yaml` populated from the spec; `ground_truth.md` renderer | DE (DA consulted) | X | O3.2 | S | Mon 14 Sep | Must |
 | S1-05 | Generator v1, customer core: customers, month loop, orders, circle_memberships with selection and the planted loyalty effect | DE | WS2 | O2.1 | L | Tue 15 Sep | Must |
-| S1-06 | Generator v1, checkout: sessions, checkout_events, experiment_assignments with the June test arm and the planted conversion effect | DE | WS1 | O1.1 | M | Tue 15 Sep | Must |
+| S1-06 | Generator v1, checkout, partial per D-007: only checkout-starting sessions generated (not the full 2.4m-session monthly baseline); experiment_assignments and the planted conversion effect included. Full session volume to Sprint 2 | DE | WS1 | O1.1 | M | Tue 15 Sep | Must |
 | S1-07 | Generator v1, Meridian Pay: mp_applications, mp_agreements, mp_instalments, mp_payments with bands, declines, misses, cure, default, reporting lag, extract censoring | DE | WS1 | O1.2 | M | Tue 15 Sep | Must |
-| S1-08 | Fault injection and `fault_manifest.parquet` | DE | X | O3.1, R3 | S | Tue 15 Sep | Must (partial cut allowed) |
+| S1-08 | Fault injection, partial per D-007: duplicates, nulls, late records, and near-duplicates only. Impossible-value and clock-skew faults deferred to Sprint 2 | DE | X | O3.1, R3 | S | Tue 15 Sep | Must (partial applied) |
 | S1-09 | Run manifest, `ground_truth_realised.json`, generator tests: structure, calibration, experiment, reproducibility, fault recall, sealing | DE | X | O3.1 | S | Wed 16 Sep | Must |
 | S1-10 | Generator README and `pipeline/README.md`: run instructions, stack and pinned versions, "CI cost assumes a public repository" line, fault catalogue, known limits | DE | X | O3.1 | S | Wed 16 Sep | Must |
-| S1-11 | dbt project and staging models for the ten tables, with dbt tests: not null, unique, accepted values, relationships, row count within tolerance | DE | X | O3.1 | M | Fri 18 Sep | Should |
+| S1-11 | dbt project and staging models — deferred to Sprint 2 week 1 per D-007. Sprint 1's "quality suite passing" refers to the generator's own test suite (S1-09), not staging | DE | X | O3.1 | M | Sprint 2 wk 1 | Deferred |
 | S1-12 | Data dictionary v1: every generator field with lineage; every D-003 parameter with source "D-003"; definitions of day-30 miss, risk mix, raw spend gap, month 0; guardrail reporting rule | DA (DE contributes) | X | O3.2 | M | Fri 18 Sep | Must |
 | S1-13 | Realism review of generator v1 output at scale 0.1, from the README alone | DA (BA writes AC) | X | O3.1, R3 | M | Wed 16 Sep | Must |
 | S1-14 | Correct charter section 3 headline miss rate (4.5% → generated value, expected 4.37%) by pull request under 11.5, referencing D-003 | DE | X | O1.2 | S | Fri 18 Sep | Must |
@@ -107,6 +109,8 @@ For each: the problem it solves (draft for the BA), acceptance criteria (draft f
 
 ## 5. Proposed cut list (Data Engineer's view; Product Owner decides)
 
+> **Actioned by D-007 (11 Sep 2026): option (b).** Cut lines 1, 2, and 3 below are applied in full; lines 4 and 5 are applied as partial scope (see the ticket changes above). Line 6 (S1-07 to Sprint 2) is **not** applied — Meridian Pay tables stay in Sprint 1. +6 Data Engineer hours added this sprint only.
+
 If the hours run out, cut in this order. Each line says what it saves and what it costs.
 
 1. **S1-16 Great Expectations.** Already Could. Saves 3 hours; costs nothing this sprint. D-002's cap applies whenever it starts; report zero hours at the review.
@@ -120,35 +124,12 @@ Never cut: seed and scale (S1-09), `baselines.yaml` (S1-03), the planted effects
 
 Arithmetic: lines 1 to 3 touch only Should and Could items, so the Must total stays at 19 hours against 11. Lines 4 and 5 bring it to about 17.5. Only line 6 brings it near 14. Cutting alone does not close the gap; that is the point of section 6.
 
-## 6. Decisions the Product Owner is asked to make on Friday 11 September
+## 6. Capacity decision — resolved
+Decided as D-007: option (b). See `/decisions/decision-log.md` D-007 for the full rationale and follow-up actions. Acceptance criteria review (Business Analyst, per D-001) still applies to every item above and remains due Friday 11 September.
 
-**Capacity and the sprint goal.** Three options.
+## 7. D-006 — resolved
 
-- **(a) Hold at 8 hours a week.** Apply cut lines 1 to 6. S1-07 and S1-11 move to Sprint 2 week 1. The Sprint 1 goal is restated: "generator v1 for customers, orders, memberships, and checkout, with the generator test suite passing in CI; Meridian Pay tables and staging in Sprint 2." Sprint 2 loses about 6 of its 16 build hours, which squeezes the experiment mart and the D-004 power analysis.
-- **(b) Add about 6 Data Engineer hours this sprint, once.** Cut lines 1 to 5 only. S1-07 stays, so the Data Analyst reviews the whole raw layer on the 16th and D-004 has guardrail data in Sprint 2 week 1. Staging (S1-11) still moves to Sprint 2. The Sprint 1 goal reads "quality suite" as the generator's test suite in CI, stated as such. The extra hours come from the same person, so this is a real trade against everything else in R9.
-- **(c) Add about 3 hours and apply line 6 anyway.** A middle that keeps neither benefit fully.
-
-Data Engineer's recommendation: (b), because Meridian Pay data in Sprint 1 protects Sprint 2's critical path (experiment design, D-004, D-005 all need the guardrail data). If the hours do not exist, (a), with the goal restated at the Friday standup so the 18th holds no surprise. Whichever it is, the sprint goal is the Product Owner's (RACI row 2); if it changes, it is a decision log entry, and the retrospective checks the log.
-
-**Acceptance criteria.** The Business Analyst's condition from D-001 applies from the first item. Every item above has draft criteria. The Business Analyst accepts or rewrites them by Friday 11 September so the weekend's build is against agreed criteria; S1-13's criteria are theirs to write from scratch.
-
-## 7. Decision to raise: D-006 (draft, for the Friday 11 September standup)
-
-| Field | Value |
-|---|---|
-| Raised by | Data Engineer, Blockers line, Friday 11 September |
-| Decided by | Finance representative (RACI row 8) |
-| Consulted | Data Analyst, Business Analyst |
-| Informed | Product Owner |
-| Needed by | Monday 14 September, so the realism review on Wednesday 16 September runs on the right data |
-
-**Question.** What does "active customers (last 12 months): 850,000" mean for the generator? 140,000 checkout starters × 52% × 12 = 873,600 orders a year. If 850,000 of those are distinct purchasers, each buys 1.03 times a year, repeat spend per existing customer is under £1 a month, and the Circle programme cannot break even on any effect size, which decides the Sprint 4 readout before the method runs.
-
-**Options.** (1) 850,000 is purchasers: keep it and state the consequence in every report. (2) 850,000 is active accounts (a logged-in session in the year); purchasers is a separate baseline Finance sets. For illustration, 450,000 gives 1.94 orders per customer per year and about £11 of spend per active customer per month. (3) Finance revises the figure.
-
-**Data Engineer's position.** Option 2. It keeps the number the board sees and adds the one the generator needs. One line changes in `baselines.yaml`; nothing else moves. Until decided, the generator carries 850,000 as purchasers, the letter of D-003.
-
-**Rule.** D-003 is reopened only with new evidence, as a new entry that references it. The arithmetic above was not in front of Finance on Thursday. D-003 stays as written; D-006 supersedes only the definition of one line.
+Decided as D-006: option 2 (active accounts vs. purchasing customers split). See `/decisions/decision-log.md` D-006 for the full rationale and follow-up actions.
 
 ## 8. Sprint 2 candidates, not in Sprint 1
 
@@ -164,4 +145,5 @@ Pulled forward only if everything above lands early, which section 1 says it wil
 
 | Version | Date | Change |
 |---|---|---|
-| 0.1 | 10 September 2026 | First issue: items from the generator spec and the D-001 to D-003 follow-ups; cut list proposal; D-006 draft. PO and BA to confirm |
+| 0.1 | 10 September 2026 | First issue: items from the generator spec and the D-001 to D-003 follow-ups; cut list proposal; D-006 draft. PO and BA to confirm | 
+| 0.2 | 11 September 2026 | D-006 and D-007 decided. Capacity resolved (option b): S1-06 and S1-08 scoped to partial per D-007; S1-11 deferred to Sprint 2; sections 6 and 7 replaced with resolved pointers; sprint goal restated |

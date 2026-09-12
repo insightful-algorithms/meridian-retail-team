@@ -27,6 +27,8 @@ Rules:
 | D-003 | 10 Sep 2026 | Ten charter baselines confirmed unchanged; credit bands, band-level miss rates, decline rate, agreement structure, and Circle programme cost added | Decided | Finance representative |
 | D-004 | | Guardrail threshold, stop rule, and how to handle the underpowered guardrail (R8) | Open, Sprint 2 | Finance representative |
 | D-005 | | Experiment design document signed before results are seen | Open, Sprint 2 | Product Owner and Finance representative |
+| D-006 | 11 Sep 2026 | Definition of "active customers": split into active accounts (850,000) and purchasing customers (450,000), superseding one line of D-003 | Decided | Finance representative |
+| D-007 | 11 Sep 2026 | Sprint 1 capacity: option (b), one-time +6 Data Engineer hours; cut lines 1 to 5 applied; S1-07 stays in Sprint 1; S1-11 moves to Sprint 2 | Decided | Product Owner |
 
 ---
 
@@ -188,3 +190,80 @@ Entry to be completed when decided.
 **Question.** Whether the experiment design document (hypotheses, primary and secondary metrics, guardrails, minimum detectable effect, sample size, duration, randomisation unit, stop rules, single fixed-horizon readout) is signed, so that no result is read before the plan is locked (R6).
 
 Entry to be completed when decided.
+
+---
+
+## D-006: Definition of "active customers" for the generator
+
+| Field | Value |
+|---|---|
+| Date | Friday 11 September 2026 |
+| Status | Decided. Supersedes one line of D-003; D-003 itself stands |
+| Raised by | Data Engineer, Blockers line, Friday 11 September standup |
+| Decided by | Finance representative |
+| Consulted | Data Analyst, Business Analyst |
+| Informed | Product Owner |
+
+**Question.** What does "active customers (last 12 months): 850,000" in charter section 3 / D-003 actually mean for the generator? The arithmetic in the generator spec (section 3.4) shows 140,000 checkout starters a month at 52% completion gives about 873,600 orders a year. If 850,000 are distinct purchasers, each buys about once a year, and the Circle loyalty programme cannot break even under any effect size the analysis could find — which would decide the Sprint 4 readout before the method runs.
+
+**Options.**
+
+1. 850,000 is purchasers. Keep it; state the consequence in every report.
+2. 850,000 is active accounts (a logged-in session in the year); purchasing customers is a separate, smaller baseline Finance sets.
+3. Finance revises the 850,000 figure itself.
+
+**Decision.** Option 2. "Active customers (last 12 months): 850,000" is redefined as active accounts. A new parameter, `purchasing_customers_12m: 450,000`, is added to `config/baselines.yaml` and is what the generator's repeat-purchase and loyalty behaviour actually calibrates to. At 450,000 purchasers, that is about 1.94 orders per customer per year and roughly £11 of spend per active customer per month — a base a loyalty programme can plausibly be run on.
+
+**Rationale (Finance representative).** "850,000 is a number I recognise — it is close to the kind of account base a business our size would report to the board, and I do not want to lose it from the story. But the Data Engineer's arithmetic is right: if all 850,000 buy, the programme is dead before the analysis starts, and that is not a finding, it is a modelling mistake. Splitting the definition keeps both things true at once: a board-sized active base, and a purchaser base the generator and the loyalty analysis can actually work with. 450,000 is a round illustrative figure, not a researched one, same as everything else in D-003."
+
+**Dissent.** None recorded. The Data Analyst and Business Analyst were consulted and raised no objection to the split; the Data Analyst noted only that they will check what the new purchaser figure does to the spend panel during the realism review.
+
+**Relationship to D-003.** This does not reopen D-003. The ten confirmed baselines and the parameters Finance added there stand unchanged. This entry adds one new parameter and re-labels one existing one, per the decision log's own rule that a superseding entry references the original rather than editing it.
+
+**Follow-up.**
+
+| Action | Owner | Due |
+|---|---|---|
+| Add `purchasing_customers_12m: 450000` to `config/baselines.yaml`, with a comment citing D-006, alongside the existing `active_customers_12m: 850000` (D-003) | Data Engineer | Before S1-03 is marked done |
+| Data dictionary entry distinguishing "active accounts" from "purchasing customers", both sourced | Data Analyst | S1-12 |
+| Realism review (S1-13) checks the purchaser figure against the generated spend panel | Data Analyst | Wed 16 Sep |
+| If the generated repeat-purchase rate looks wrong at scale 0.1, raise as a new decision rather than adjusting `purchasing_customers_12m` silently | Data Engineer | Ongoing |
+
+---
+
+## D-007: Sprint 1 capacity — hold, add hours, or partial
+
+| Field | Value |
+|---|---|
+| Date | Friday 11 September 2026 |
+| Status | Decided |
+| Raised by | Data Engineer, `backlog/sprints/sprint-01.md` section 6 |
+| Decided by | Product Owner (RACI row 2, sprint goals) |
+| Consulted | Data Engineer |
+| Informed | Finance representative, Business Analyst, Data Analyst |
+
+**Question.** About 19 hours of Must-tier Data Engineer work are backlogged for Sprint 1 against roughly 11 hours of available capacity by Friday 18 September. Which of the three options in the backlog's section 6 closes the gap.
+
+**Options.**
+
+- (a) Hold at 8 hours a week. Apply cut lines 1 to 6. S1-07 (Meridian Pay tables) and S1-11 (dbt staging) both move to Sprint 2.
+- (b) Add about 6 Data Engineer hours this sprint, once. Cut lines 1 to 5 only. S1-07 stays in Sprint 1; only S1-11 moves to Sprint 2.
+- (c) Add about 3 hours and apply cut line 6 anyway. Keeps neither benefit fully.
+
+**Decision.** Option (b). The Sprint 1 goal is restated: "generator v1 for customers, orders, memberships, checkout, and Meridian Pay, with the generator's own test suite passing in CI; dbt staging models move to Sprint 2 week 1." Cut lines applied: S1-16 (Great Expectations) deferred, S1-15 (full-scale run) deferred, S1-11 (dbt staging) deferred, S1-08 (fault injection) partial — impossible-value and clock-skew faults dropped, duplicates/nulls/late-records/near-duplicates kept, S1-06 (checkout generation) partial — only checkout-starting sessions generated, not the full 2.4m-session baseline.
+
+**Rationale (Product Owner).** "The Data Engineer's own recommendation was (b), and the reasoning holds: Meridian Pay data landing in Sprint 1 protects Sprint 2's critical path, since the guardrail power analysis (D-004) and the experiment design document (D-005) both need it. Losing dbt staging for one sprint is a smaller cost — the generator's own test suite is still real evidence, just not the full pipeline yet. Six hours once is a one-time trade, not a new standing expectation; it does not reset what 'available capacity' means for Sprint 2 onward."
+
+**Dissent.** None recorded.
+
+**Follow-up.**
+
+| Action | Owner | Due |
+|---|---|---|
+| Restate the Sprint 1 goal in `backlog/sprints/sprint-01.md` per the wording above | Data Engineer | Immediately |
+| Apply cut lines 1 to 5 in the backlog: mark S1-16, S1-15 deferred to Sprint 2; note S1-08 and S1-06 as partial scope with the specific faults/sessions dropped | Data Engineer | Immediately |
+| Confirm S1-11 (dbt staging) is Sprint 2 week 1's first item | Product Owner | Sprint 2 planning |
+| The six added hours are tracked in `/reflection` against R9 (workload pressure), same as the Great Expectations hours under D-002 | Data Engineer | Sprint 1 review |
+| This is a one-off addition. Sprint 2 capacity planning starts from 8 hours a week again unless a new decision changes it | Product Owner | Sprint 2 planning |
+
+---
