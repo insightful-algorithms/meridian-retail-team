@@ -1,0 +1,118 @@
+# generator.yaml
+#
+# Structural and nuisance choices that are NOT D-003 business parameters —
+# these are the Data Engineer's constants (RACI row 9), Data Analyst
+# consulted (spec section 10). Every entry cites the generator-spec
+# subsection it comes from. Business parameters live only in
+# baselines.yaml; nothing here overrides one of those.
+
+run_defaults:  # spec 2.2
+  scale: 0.1          # 1.0 for the analysis run; 0.01 in CI
+  seed: 20260907
+  extract_at: "2026-08-31T23:59:59Z"
+
+customers:  # spec 5.1
+  latent_rate_distribution: gamma
+  gamma_shape: 0.8
+  gamma_scale: SOLVED_AT_CALIBRATION  # solved so trailing-12m purchasers match purchasing_customers_12m
+  region_weighting:
+    areas: 12  # ITL1 areas
+    london_and_south_east_overweight_pct: 10
+  category_affinity:
+    categories: [furniture, textiles, kitchen, decor, garden]
+    own_category_share_of_orders_pct: 60
+    remaining_share_spread_over_other_four: true
+  multi_visitor_id_rate_pct: 15  # phone + laptop
+
+sessions:  # spec 4.2, 5.2
+  device_shares_pct: {mobile: 62, desktop: 30, tablet: 8}
+  channel_shares_pct: {organic: 32, paid_search: 25, direct: 15, email: 12, social: 10, affiliate: 6}
+  sessions_per_visitor_month: 1.6
+  events_per_checkout_session_approx: 3.5  # spec 4.3
+
+checkout_and_orders:  # spec 5.2
+  completion_rate_by_device_pct: {mobile: 50, desktop: 56, tablet: 52}  # weight to 52.0% overall
+  checkout_session_pattern:
+    completers: {one_session_pct: 85, two_sessions_first_abandoned_pct: 15}
+    non_completers: {one_session_pct: 80, two_sessions_pct: 20}
+  order_value:
+    distribution: lognormal
+    sigma: 0.6
+    category_multipliers: {furniture: 1.8, garden: 1.2, kitchen: 0.9, textiles: 0.7, decor: 0.6}
+    rescale_to_mean_gbp: 68.00
+    clip_min_gbp: 5
+    clip_max_gbp: 2000
+  item_count:
+    distribution: poisson
+    lambda: 1.6
+    plus_one: true
+    cap: 8
+  payment_method_shares_pct: {meridian_pay: 24, card: 58, paypal: 12, other: 6}
+  daily_timestamp_peak_local_hours: ["19:00", "22:00"]
+  daily_volume_follows: seasonality.weekly  # spec 3.2
+
+experiment:  # spec 4.4, 5.2
+  experiment_id: checkout_redesign_2026_06
+  window_start: 2026-06-01
+  window_end: 2026-06-14
+  assignment: deterministic_hash(visitor_id, experiment_id)
+  arm_split_target_pct: 50
+  post_window_behaviour: everyone_sees_v1  # redesign did not ship during the data period
+
+meridian_pay:  # spec 5.3
+  band_decline_rates_pct: {A: 4, B: 7, C: 12, D: 24, E: 36}
+  application_shares_pct: {A: 27.5, B: 28.4, C: 22.0, D: 13.9, E: 8.3}
+  declined_applicant_outcome:
+    pays_by_card_and_completes_pct: 45
+    abandons_pct: 55
+    note: Both inside the 52% completion rate, not on top of it
+  instalment_2_miss: uses baselines.mp_day30_miss_rate_by_band
+  instalment_3_rule:
+    if_instalment_2_paid_on_time: half_the_band_rate
+    if_instalment_2_missed_then_cured: the_band_rate
+    if_instalment_2_still_unpaid: not_paid
+  cure_model:
+    window_days: [1, 59]
+    weighting: first_fortnight_weighted
+    probability: SOLVED_AT_CALIBRATION  # same across bands; ~47%, written to run_manifest.json
+    calibration_target: 90-day written-off value = 1.9% of agreement value
+  reporting_lag_distribution:  # duplicated in faults.yaml for the late-arriving fault
+    0_days_pct: 85
+    1_to_3_days_pct: 10
+    4_to_14_days_pct: 4
+    15_to_45_days_pct: 1
+  maturity_rule: instalment counted missed only when due_date + 45 days <= extract_at
+  censoring_note: 90-day default rate cannot be computed for the June 2026 test window (extract is 31 Aug 2026)
+
+circle_membership:  # spec 5.4
+  cohort_sizes:
+    2025-02: 24000
+    2025-03: 20000
+    2025-04: 16000
+    2025-05_to_2026-08_per_month: 13750  # 16 months x 13,750 = 220,000
+  join_channel_shares_pct: {checkout: 70, account: 20, email: 10}
+  selection_weighting:
+    formula: (latent_rate / median_latent_rate) ^ selection_exponent
+    selection_exponent: SOLVED_AT_CALIBRATION  # target: 1.30x raw gap, +/- 0.03
+    multipliers: {london: 1.10, furniture_affinity: 1.10}
+    order_month_weighting: favours customers who ordered that month, to hit the 70/20/10 join_channel_shares
+  month_0_treatment: excluded_from_att  # shown in event study, not counted (spec 5.4, 7.2)
+  placebo_diagnostic_sample:
+    cohorts: ["2025-07", "2026-02"]
+    members_approx: 110000
+    note: Fake join date is 6 months earlier; only defined where that predates nothing (data starts 2025-01)
+
+seasonality:  # spec 3.2, 5.5; values also in baselines.yaml (D-003)
+  applies_to: [sessions, checkout_starters, existing_customer_rates]
+  does_not_apply_to: [circle_cohort_sizes, checkout_completion_rate]
+  interpretation_choice: >
+    D-003 states peaks/troughs relative to "the monthly mean". Literal
+    reading taken: the eight unlabelled months sit at 0.9375 of the mean.
+    One-line change in baselines.yaml if Finance prefers the other reading
+    (spec 3.2).
+
+data_window:
+  start: 2025-01-01
+  end: 2026-08-31
+  months: 20
+  baseline_month_equivalents: 19.3  # after seasonality; why totals aren't 20x baseline

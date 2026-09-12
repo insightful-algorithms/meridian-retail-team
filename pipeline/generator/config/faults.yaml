@@ -1,0 +1,98 @@
+# faults.yaml
+# Every injected fault (R3, generator spec section 6). Rates apply to the
+# clean, finished tables; faults are applied last, after keys/references
+# pass clean. Every injected row is logged in _manifest/fault_manifest.parquet.
+# Documented for all roles in the generator README (D-003 follow-up 2).
+#
+# "impossible_value" and "clock_skew" (marked below) are two additions
+# beyond R3's own list (duplicates, missing values, late records,
+# seasonality). The Data Analyst can strike them at the realism review
+# (S1-13) — spec section 6, closing note.
+
+sessions:
+  duplicate_rows:
+    rate: 0.005
+    tests: Deduplication on session_id
+
+  device_null:
+    rate_overall: 0.02
+    rate_affiliate_channel: 0.08
+    rate_other_channels: 0.015
+    tests: Not-null tests; nulls that are not random
+
+  channel_null:
+    rate: 0.03
+    tests: Not-null tests
+
+checkout_events:
+  duplicate_rows:
+    rate: 0.01
+    tests: Deduplication on event_id
+
+  near_duplicate_rows:
+    rate: 0.003
+    detail: New event_id, same session_id and event_type, event_ts + 1 second
+    tests: Deduplication that keys on content, not just the id
+
+  payment_method_null_on_order_placed:
+    rate: 0.008
+    tests: Backfill from orders
+
+orders:
+  duplicate_rows:
+    rate: 0.002
+    tests: Deduplication on order_id; visitor-level completion count must not double-count
+
+  category_primary_null:
+    rate: 0.01
+    tests: Not-null; category mix as a matching covariate
+
+  order_value_non_positive:
+    rate: 0.0005
+    kind: impossible_value  # addition beyond R3
+    tests: Accepted-range test; AOV calculation must exclude these
+
+  order_ts_before_session_start:
+    rate: 0.001
+    kind: clock_skew  # addition beyond R3
+    max_seconds_before: 120
+    tests: Ordering assumptions in the funnel
+
+customers:
+  region_null:
+    rate: 0.015
+    tests: Matching covariate with missing values
+
+mp_applications:
+  credit_band_null:
+    rate: 0.005
+    tests: The risk-mix guardrail needs a rule for unknown band
+
+mp_agreements:
+  duplicate_rows:
+    rate: 0.001
+    tests: Deduplication
+
+mp_payments:
+  duplicate_rows:
+    rate: 0.005
+    tests: Duplicate payments would understate misses
+
+  late_arriving:
+    kind: late_record
+    lag_distribution:  # generator spec 5.3; recorded_at = paid_at + lag
+      0_days: 0.85
+      1_to_3_days: 0.10
+      4_to_14_days: 0.04
+      15_to_45_days: 0.01
+    detail: Rows recorded after --extract-at are absent from the extract
+    tests: Maturity rule (instalment mature only at due_date + 45 days)
+
+circle_memberships:
+  duplicate_rows:
+    rate: 0.01
+    tests: One membership per customer
+
+  joined_before_first_order:
+    rate: 0.003
+    tests: Referential logic test

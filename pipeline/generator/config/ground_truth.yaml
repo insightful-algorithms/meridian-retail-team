@@ -1,0 +1,129 @@
+# ground_truth.yaml
+#
+# SEALED. Read by the generator only, per the notice in generator spec
+# section 7 and charter 7.1/D-003. No file under pipeline/dbt,
+# pipeline/quality, or pipeline/analysis may reference this file or the
+# string "ground_truth" — CI checks this (spec section 8, "Sealing").
+# Rendered to ground_truth.md on every run by
+# src/meridian_gen/render_ground_truth.py, so the two cannot drift.
+# Realised values (what this seed/scale actually produced) are written
+# separately to _manifest/ground_truth_realised.json after each run.
+
+workstream_1_checkout_redesign:
+  experiment_id: checkout_redesign_2026_06
+  window_start: 2026-06-01
+  window_end: 2026-06-14
+  arm_split: "50/50, no sample ratio mismatch planted (randomisation is correct, A4)"
+
+  effects:
+    checkout_completion_pct:
+      control: 52.0
+      test: 53.8
+      planted_change_pp: 1.8
+      homogeneous_by_device: true
+
+    average_order_value_gbp:
+      control: 68.00
+      test: 68.00
+      planted_change: none
+
+    mp_share_of_orders_pct:
+      control: 24.0
+      test: 27.0
+      planted_change_pp: 3.0
+
+    mp_band_shares_pct:
+      control: {A: 30, B: 30, C: 22, D: 12, E: 6}
+      test:    {A: 28, B: 29, C: 22, D: 14, E: 7}
+
+    mp_share_bands_d_e_pct:
+      control: 18.0
+      test: 21.0
+      planted_change_pp: 3.0
+
+    mp_day30_miss_rate_pct:
+      control: 4.37
+      test: 4.63
+      planted_change_pp: 0.26
+      note: Entirely through the band mix shift; band-level rates themselves unchanged (D-003)
+
+    mp_decline_rate_pct:
+      control: 12.0
+      test: 12.8
+      planted_change_pp: 0.8
+      note: Band-level decline rates unchanged
+
+  mechanism: >
+    In the test arm, completion is drawn at 53.8%; completers choose
+    Meridian Pay at 27%; Meridian Pay applications in the test arm are
+    drawn from band shares that, after the unchanged band decline rates,
+    leave the approved mix at 28/29/22/14/7. Everything else is identical
+    between arms.
+
+  why_these_values: >
+    The conversion lift sits above the 1.5-point detectable threshold and
+    below the 2-point level that would make the test trivial. The
+    repayment effect (+0.26pp) is real and below the indicative 0.5-point
+    threshold, because with ~4,000 Meridian Pay orders per arm the 90%
+    interval on the difference is roughly +/-0.75 points, wider than the
+    threshold itself (R8). The same shift appears in the risk mix, where a
+    3-point move against an 18% base has a standard error under a point.
+    The planted world is one where the primary metric says ship, the
+    miss-rate guardrail says "cannot tell", and the risk-mix rule says
+    Finance reviews — the decision the charter was written to practise.
+
+workstream_2_circle_membership:
+  effect_on_checkout_start_rate_by_tenure:
+    month_0:
+      change_pct: 4
+      note: Partial join month; excluded from the ATT
+    months_1_to_3:
+      change_pct: 12
+      note: Novelty
+    months_4_to_6:
+      change_pct: 8
+    months_7_onward:
+      change_pct: 6
+      note: Persists; no decay to zero in the data period
+
+  att_on_monthly_spend_months_1_to_6_pct: 10.0
+  att_note: >
+    The estimand in charter 7.4. Expressed as a percentage of the joiners'
+    counterfactual monthly spend; the realised figure in GBP depends on
+    D-006 and is written to ground_truth_realised.json.
+
+  effect_on_order_value_category_mix: none
+
+  selection_premium:
+    calibrated_to_raw_gap_pct: 30
+    expected_effect_on_latent_rate_pct: 20
+    note: >
+      Time-invariant, so customer fixed effects absorb it (DiD works);
+      pre-join spend is a noisy proxy for it (matching gets close, not all
+      the way)
+
+  raw_gap_decomposition:
+    selection_points: 20
+    programme_points: 10
+    note: >
+      1.20 x 1.08 ~= 1.30, where 1.08 is the average multiplier across
+      members' post-join months in the trailing year
+
+  why_these_values: >
+    The effect is dynamic on purpose: with staggered joining and an effect
+    that changes with time since joining, a plain two-way fixed effects
+    regression uses already-joined members as controls for later joiners
+    and is biased (R7) — the comparison in charter 7.4 needs something to
+    show. The effect is homogeneous across cohorts, regions, and
+    categories, so the heterogeneity-robust estimator has one number to
+    recover. Selection is on a fixed customer trait, so parallel trends
+    hold before joining and the placebo comes out clean, apart from the
+    month-0 order that joining at checkout guarantees.
+
+sealing:
+  status: sealed
+  readable_by: [Data Engineer, Data Analyst]
+  sealed_until: Sprint 4 readout
+  enforcement: >
+    CI fails the build if any file under pipeline/dbt, pipeline/quality, or
+    pipeline/analysis contains the string "ground_truth" (spec section 8).

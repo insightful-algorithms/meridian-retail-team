@@ -1,0 +1,86 @@
+# baselines.yaml
+# Every business parameter the generator reads. No other file is a source
+# for these numbers (S1-03 AC). Each entry cites the decision that set it.
+# Do not change a value here without a decision log entry (charter 11.5).
+
+# --- 3.1: the ten charter baselines, confirmed unchanged (D-003 option 3) ---
+
+sessions_per_month: 2400000  # D-003. Monthly mean; seasonality applied around it
+
+checkout_starters_per_month: 140000  # D-003. Distinct visitors with >=1 checkout_started event/month
+
+checkout_completion_rate: 0.52  # D-003. Visitor-level: orders / checkout starters, per month
+
+average_order_value_gbp: 68.00  # D-003. Mean of order_value_gbp; lognormal with category multipliers
+
+mp_share_of_orders: 0.24  # D-003. Orders paid with Meridian Pay / all orders
+
+mp_day30_miss_rate_headline: 0.045  # D-003. Stated target. Generator produces 4.37% from the band
+                                     # rates below (D-003 dissent); calibration test asserts 4.37 +/- 0.15.
+                                     # S1-14 corrects charter section 3 to the generated value.
+
+mp_90day_default_rate_of_value: 0.019  # D-003. Value written off at day 90 / agreement value
+
+active_customers_12m: 850000  # D-003. Board-facing figure: active accounts (redefined by D-006;
+                               # this is NOT the purchaser count the generator calibrates to)
+
+purchasing_customers_12m: 450000  # D-006. Supersedes the purchaser reading of active_customers_12m.
+                                   # This is what repeat-purchase and loyalty behaviour calibrates to.
+                                   # ~1.94 orders/customer/year, ~£11 spend/active customer/month.
+
+circle_members:
+  count: 280000  # D-003. Exact count at 31 August 2026
+  join_window_start: 2025-02-01  # D-003
+  join_window_end: 2026-08-31  # D-003
+
+raw_spend_gap_members_vs_nonmembers: 0.30  # D-003. Members spend ~30% more per month (calibration target)
+
+# --- 3.2: parameters Finance added (D-003) ---
+
+credit_bands_approved_share:  # D-003. Share of *approved* Meridian Pay agreements, by internal band
+  A: 0.30
+  B: 0.30
+  C: 0.22
+  D: 0.12
+  E: 0.06
+
+mp_day30_miss_rate_by_band:  # D-003. Probability instalment 2 is unpaid on its due date, by band
+  A: 0.015
+  B: 0.030
+  C: 0.050
+  D: 0.090
+  E: 0.140
+
+mp_decline_rate: 0.12  # D-003. Overall share of applications declined at checkout
+
+mp_agreement_structure:  # D-003
+  instalment_count: 3
+  due_days_offset: [0, 30, 60]
+  amount_rule: "agreement_value_gbp / 3, rounded to the penny, remainder on instalment 1"
+
+mp_90day_default_rate_by_band:  # D-003. Proportional to the band's day-30 miss rate;
+                                 # common cure probability calibrated so total written-off value = 1.9%
+  proportional_to: mp_day30_miss_rate_by_band
+  overall_target: 0.019
+
+circle_programme_cost:  # D-003. Not generated; stored for the marts to apply in Sprint 4 (O2.3)
+  points_value_pct_of_member_spend: 0.015
+  points_redemption_rate: 0.70
+  communications_cost_gbp_per_member_per_month: 0.15
+
+seasonality:  # D-003. Daily/monthly factors normalised to mean 1.0
+  weekly:
+    sunday: 1.15
+    monday: 1.15
+    tuesday: 0.967
+    wednesday: 0.967
+    thursday: 0.967
+    friday: 0.90
+    saturday: 0.90
+  monthly:
+    november: 1.40
+    december: 1.40
+    january: 0.85
+    february: 0.85
+    other_months: 0.9375  # D-003 interpretation choice, generator spec 3.2: literal reading of
+                           # "relative to the monthly mean" — see spec for the alternative reading

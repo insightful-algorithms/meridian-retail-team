@@ -1,0 +1,40 @@
+name: CI
+
+# Public repository. Per D-002 condition 1, the £0 direct cost baseline
+# depends on this repo staying public — GitHub Actions minutes on a
+# private repo are metered. See pipeline/README.md.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  generate-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate synthetic data at CI scale
+        working-directory: pipeline/generator
+        run: >
+          python generate.py
+          --scale 0.01
+          --seed 20260907
+          --extract-at 2026-08-31T23:59:59Z
+
+      - name: Run generator tests
+        working-directory: pipeline/generator
+        run: pytest tests -v
