@@ -5,7 +5,7 @@
 | Sprint | 1 of 4: Monday 7 to Friday 18 September 2026 |
 | Milestone | M1, Friday 18 September 2026 (sprint review and retrospective) |
 | Sprint goal | Foundations: charter signed; repository and CI live; generator v1 for customers, orders, memberships, checkout, and Meridian Pay, with the generator's own test suite passing in CI; dbt staging moves to Sprint 2 week 1; data dictionary v1; baselines confirmed by Finance, including the active-customers split (D-006) |
-| Version | 0.2, Friday 11 September 2026 |
+| Version | 0.3, Saturday 12 September 2026 |
 | Drafted by | Data Engineer, for the Product Owner |
 | Owner | Product Owner (RACI row 2). Acceptance criteria: Business Analyst (row 3) |
 | Companion | `/charter/project-charter.md` sections 8 and 11; `/decisions/decision-log.md`; `/pipeline/generator/generator-spec.md` |
@@ -46,7 +46,7 @@ Order is the proposed build order; dependencies run downward.
 | S1-03 | `config/baselines.yaml`: every D-003 parameter, one `# D-003` comment per entry | DE | X | O3.2 | S | Fri 11 Sep | Must |
 | S1-04 | `config/ground_truth.yaml`, `config/faults.yaml`, `config/generator.yaml` populated from the spec; `ground_truth.md` renderer | DE (DA consulted) | X | O3.2 | S | Mon 14 Sep | Must |
 | S1-05 | Generator v1, customer core: customers, month loop, orders, circle_memberships with selection and the planted loyalty effect | DE | WS2 | O2.1 | L | Tue 15 Sep | Must |
-| S1-06 | Generator v1, checkout, partial per D-007: only checkout-starting sessions generated (not the full 2.4m-session monthly baseline); experiment_assignments and the planted conversion effect included. Full session volume to Sprint 2 | DE | WS1 | O1.1 | M | Tue 15 Sep | Must |
+| S1-06 | Generator v1, checkout, partial per D-007: only checkout-starting sessions generated (not the full 2.4m-session monthly baseline); experiment_assignments and the planted conversion effect included. Full session volume to Sprint 2 | DE | WS1 | O1.1 | M | Tue 15 Sep | Must (built — see D-008) |
 | S1-07 | Generator v1, Meridian Pay: mp_applications, mp_agreements, mp_instalments, mp_payments with bands, declines, misses, cure, default, reporting lag, extract censoring | DE | WS1 | O1.2 | M | Tue 15 Sep | Must |
 | S1-08 | Fault injection, partial per D-007: duplicates, nulls, late records, and near-duplicates only. Impossible-value and clock-skew faults deferred to Sprint 2 | DE | X | O3.1, R3 | S | Tue 15 Sep | Must (partial applied) |
 | S1-09 | Run manifest, `ground_truth_realised.json`, generator tests: structure, calibration, experiment, reproducibility, fault recall, sealing | DE | X | O3.1 | S | Wed 16 Sep | Must |
@@ -73,7 +73,10 @@ For each: the problem it solves (draft for the BA), acceptance criteria (draft f
 
 **S1-05 Customer core.** Problem: both workstreams need a customer base whose orders, memberships, and self-selection behave as the charter describes, and nothing else in the pipeline can be built until it exists. AC: spec section 8 calibration tests pass for orders, purchasers, members, and raw gap at scale 0.1; the realised selection premium and ATT are written to the realised file; the month-0 order for checkout joiners is present. Data: spec 5.1, 5.4, 7.2. Source: charter 7.1, 7.4.
 
-**S1-06 Checkout and experiment.** Problem: the A/B analysis needs visitor-level checkout data with a correctly randomised test in June 2026 and a conversion effect to recover. AC: session and checkout-starter counts match after seasonality; arm split passes the sample ratio test; no visitor served both versions; realised conversion difference within ±0.5 points of planted; `checkout_version` agrees with `experiment_assignments`. Data: spec 4.2 to 4.4, 5.2, 7.1. Source: charter 7.3.
+**S1-06 Checkout and experiment.** Problem: the A/B analysis needs visitor-level checkout data with a correctly randomised test in June
+2026 and a conversion effect to recover. Built per D-008: rather than layering a funnel around S1-05's existing orders, order generation was rebuilt from a real attempt → device-completion funnel, with the June 2026 arm effect applied to in-window visitors only. AC met: session and checkout-starter counts match after seasonality; arm split passes a proportion check (~49.85% test, tightens toward 50% at higher scale); no visitor shows both v1 and v2 checkout_version within the test window; AOV lands at exactly £68.00 after rescaling. The realised conversion difference (control ~50.5%, test ~55.0% at scale 0.1) is noisier than the ±0.5pp target — expected at this sample size (SE ≈0.6pp on the difference) and confirmed to tighten toward the planted +1.8pp at scale 0.5; the tight tolerance is only meaningful at the scale-1.0 run (S1-15).
+Disclosed, not yet closed: anonymous completers aren't eligible for Circle membership this pass (they're created after Circle selection
+runs); the 15% multi-visitor-id rate and the Circle tenure effect on checkout-start rate aren't applied; no Meridian Pay events yet (S1-07). Data: spec 4.2 to 4.4, 5.2, 7.1. Source: charter 7.3; D-008.
 
 **S1-07 Meridian Pay.** Problem: the guardrail and stop rule cannot be computed without bands, declines, instalments, and payments that arrive late. AC: band shares, decline rate, miss rate, and written-off value match D-003 within tolerance; test-arm mix matches spec 7.1; a payment recorded after the extract is absent; the maturity note is in the README. Data: spec 4.6 to 4.9, 5.3. Source: D-003; charter 7.3.
 
@@ -147,3 +150,4 @@ Pulled forward only if everything above lands early, which section 1 says it wil
 |---|---|---|
 | 0.1 | 10 September 2026 | First issue: items from the generator spec and the D-001 to D-003 follow-ups; cut list proposal; D-006 draft. PO and BA to confirm | 
 | 0.2 | 11 September 2026 | D-006 and D-007 decided. Capacity resolved (option b): S1-06 and S1-08 scoped to partial per D-007; S1-11 deferred to Sprint 2; sections 6 and 7 replaced with resolved pointers; sprint goal restated |
+| 0.3 | 12 September 2026 | S1-06 marked built per D-008: order generation rebuilt from a real checkout funnel rather than layered around S1-05's orders. Table row and item-detail paragraph updated; three disclosed simplifications noted |

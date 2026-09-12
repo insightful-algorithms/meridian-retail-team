@@ -29,6 +29,7 @@ Rules:
 | D-005 | | Experiment design document signed before results are seen | Open, Sprint 2 | Product Owner and Finance representative |
 | D-006 | 11 Sep 2026 | Definition of "active customers": split into active accounts (850,000) and purchasing customers (450,000), superseding one line of D-003 | Decided | Finance representative |
 | D-007 | 11 Sep 2026 | Sprint 1 capacity: option (b), one-time +6 Data Engineer hours; cut lines 1 to 5 applied; S1-07 stays in Sprint 1; S1-11 moves to Sprint 2 | Decided | Product Owner |
+| D-008 | 12 Sep 2026 | Rebuild order generation from a real checkout-completion funnel, superseding S1-05's direct order draw | Decided | Product Owner |
 
 ---
 
@@ -267,3 +268,66 @@ Entry to be completed when decided.
 | This is a one-off addition. Sprint 2 capacity planning starts from 8 hours a week again unless a new decision changes it | Product Owner | Sprint 2 planning |
 
 ---
+
+## D-008: Rebuild order generation from a real checkout-completion funnel
+
+| Field | Value |
+|---|---|
+| Date | Saturday 12 September 2026|
+| Status | Decided |
+| Raised by | Data Engineer, scoping S1-06 |
+| Decided by | Product Owner |
+| Consulted | Data Engineer |
+| Informed | Finance representative, Business Analyst, Data Analyst |
+
+**Question.** `customer_core.py` (S1-05) draws `orders` directly from each
+customer's latent monthly rate, with no checkout-completion step between
+attempt and order. S1-06 needs a real completion rate (52.0% control,
+53.8% test — the planted conversion effect) and the 140,000/month
+checkout-starter baseline, neither of which can be represented honestly
+without a funnel layer. Two ways to close the gap: treat S1-05's orders as
+fixed and build a funnel around them (Option A), or rebuild order
+generation from an actual attempt-to-completion funnel (Option B).
+
+**Options.**
+
+1. Keep S1-05's orders as ground truth; fabricate a funnel that explains
+   them after the fact, adding anonymous non-converting traffic to hit
+   volume targets.
+2. Rebuild order generation properly: `customer_core.py` produces a
+   checkout-attempt propensity only; `checkout_core.py` (S1-06) applies a
+   real, device-level completion draw, with the June arm effect layered
+   on top for in-window visitors, to produce the actual orders.
+
+**Decision.** Option 2. `customer_core.py` no longer produces `orders`.
+The Circle loyalty effect and the completion effect both act on a
+checkout-attempt rate, consistent with charter 7.4's own language
+("effect on checkout-start rate").
+
+**Rationale (Product Owner).** The charter's own objectives (O1.1, O1.2)
+are about a completion rate and a conversion effect; a model that skips
+straight to orders can't represent either honestly. Option 1 would have
+been faster, but it means the "completion rate" in every downstream
+report is fabricated scaffolding around numbers that were never actually
+subject to a completion draw. That's a bigger integrity problem than
+redoing calibration once, now, while only two backlog items depend on it.
+
+**Consequence, logged plainly.** S1-05's calibration test results
+(purchasers 44,620/45,000, raw gap 1.308) are **superseded, not
+repeated** — they were measured on a model with no completion step and
+no longer describe what the pipeline does. `customer_core.py`'s own
+purchaser/raw-gap figures are now explicitly approximate (a flat 0.52
+completion stand-in, for its own fast calibration only);
+`checkout_core.py` computes the authoritative, completion-based figures.
+
+**Dissent.** None recorded — raised and decided in the same sitting.
+
+**Follow-up.**
+
+| Action | Owner | Due |
+|---|---|---|
+| Revise `customer_core.py`: drop order generation, expose `checkout_attempts` | Data Engineer | Done, this entry |
+| Build `checkout_core.py`: sessions, checkout_events, experiment_assignments, orders, from a real completion funnel | Data Engineer | Done, this entry |
+| Update both test suites to match the new module boundary | Data Engineer | Done, this entry |
+| Data dictionary note distinguishing attempt-rate from completion-rate calibration | Data Analyst | S1-12 |
+| Realism review (S1-13) checks the real, completion-based purchaser/raw-gap figures, not the approximate ones in `customer_core.py`'s own manifest | Data Analyst | Wed 16 Sep |
