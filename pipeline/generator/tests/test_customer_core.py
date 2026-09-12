@@ -1,8 +1,7 @@
-"""Tests for the S1-05 customer core (customers, orders, circle_memberships).
-
-Subset of generator spec section 8 that applies to this module alone.
-Session/checkout-level tests (arm split, sample ratio mismatch, etc.)
-belong to S1-06 and are not covered here.
+"""Tests for the revised S1-05 customer core (D-008): customers,
+checkout_attempts, circle_memberships. No `orders` table here anymore --
+see test_checkout_core.py for order/session/experiment tests, which run
+against the real completion funnel.
 """
 
 from pathlib import Path
@@ -14,7 +13,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "meridian_gen"))
 import customer_core as cc  # noqa: E402
 
-SCALE = 0.1  # spec 8: calibration tests apply at scale >= 0.1
+SCALE = 0.1
 SEED = 20260907
 
 
@@ -42,42 +41,42 @@ def test_structure_circle_memberships(result):
     assert set(result["circle_memberships"].columns) == expected_cols
 
 
+def test_structure_checkout_attempts(result):
+    expected_cols = {"customer_id", "year_month"}
+    assert set(result["checkout_attempts"].columns) == expected_cols
+    # every attempting customer_id must exist in customers
+    assert set(result["checkout_attempts"]["customer_id"]) <= set(result["customers"]["customer_id"])
+
+
 def test_keys_unique(result):
     assert result["customers"]["customer_id"].is_unique
     assert result["circle_memberships"]["membership_id"].is_unique
-    assert result["circle_memberships"]["customer_id"].is_unique  # spec 4.10: unique in clean data
+    assert result["circle_memberships"]["customer_id"].is_unique
 
 
 def test_circle_members_exact_count(result, baselines):
-    # Spec 4.10 / calibration test: "members exactly 280,000 x scale"
     expected = round(280_000 * SCALE)
     assert len(result["circle_memberships"]) == expected
 
 
-def test_purchasers_within_tolerance(result, baselines):
+def test_purchasers_approx_within_tolerance(result, baselines):
+    # NOTE (D-008): this module's own purchaser figure is approximate --
+    # it uses a flat 0.52 completion stand-in, not the real device-level
+    # funnel. Widened tolerance vs. the original (which measured actual
+    # completions directly); checkout_core.py re-checks the REAL figure.
     target = baselines["purchasing_customers_12m"] * SCALE
-    realised = result["manifest"]["realised_purchasers_12m_at_calibration"]
-    assert abs(realised - target) / target <= 0.02  # widened from the calibration's own 1% for run-to-run noise
+    realised = result["manifest"]["realised_purchasers_12m_at_calibration_approx"]
+    assert abs(realised - target) / target <= 0.03
 
 
-def test_raw_gap_within_tolerance(result, baselines):
-    # Spec 8: "raw gap 1.30 +/- 0.03. Tolerances widen by 1/sqrt(scale) below 1.0"
-    target = baselines["raw_spend_gap_members_vs_nonmembers"] + 1.0  # 0.30 -> 1.30
-    tol = 0.03 / (SCALE ** 0.5)
-    realised = result["manifest"]["circle_raw_gap_realised"]
+def test_raw_gap_approx_within_tolerance(result, baselines):
+    # NOTE (D-008): computed on attempt-rate, not completions. Widened
+    # tolerance for the same reason as above; checkout_core.py has the
+    # authoritative, completion-based figure.
+    target = baselines["raw_spend_gap_members_vs_nonmembers"] + 1.0
+    tol = 0.05 / (SCALE ** 0.5)
+    realised = result["manifest"]["circle_raw_gap_realised_on_attempts_approx"]
     assert abs(realised - target) <= tol
-
-
-def test_order_value_mean_near_target(result, baselines):
-    aov = result["orders"]["order_value_gbp"].mean()
-    target = baselines["average_order_value_gbp"]
-    assert abs(aov - target) <= 1.0  # wider than spec's £0.50 (that's the full-pipeline AOV, not this module alone)
-
-
-def test_order_value_never_non_positive(result):
-    # This module doesn't inject the impossible-value fault (that's S1-08);
-    # clean output here should have no non-positive values at all.
-    assert (result["orders"]["order_value_gbp"] > 0).all()
 
 
 def test_reproducibility(result):
@@ -87,3 +86,4 @@ def test_reproducibility(result):
     assert result["customers"]["customer_id"].tolist() == result2["customers"]["customer_id"].tolist()
     assert result["manifest"]["gamma_scale_calibrated"] == result2["manifest"]["gamma_scale_calibrated"]
     assert result["circle_memberships"]["customer_id"].tolist() == result2["circle_memberships"]["customer_id"].tolist()
+    assert result["checkout_attempts"].equals(result2["checkout_attempts"])
